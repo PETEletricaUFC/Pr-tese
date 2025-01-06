@@ -1,0 +1,61 @@
+#include <ESP32Servo.h>
+#include <ESP32PWM.h>
+#include <BluetoothSerial.h>
+
+// Configuração do Bluetooth
+BluetoothSerial SerialBT;
+
+// Definição dos servos
+Servo dedos[5]; // Array para controlar os 5 dedos
+
+// Variáveis para armazenar o estado de cada dedo (1 para aberto, 0 para fechado)
+int estadoDedo[5] = {0, 0, 0, 0, 0}; // Todos os dedos começam fechados
+
+void setup() {
+  Serial.begin(115200);       // Serial para debug
+  SerialBT.begin("MaoRobotica"); // Nome do dispositivo Bluetooth
+  Serial.println("Bluetooth iniciado!");
+
+  // Associar os pinos GPIO aos servos (ajuste os pinos conforme necessário)
+  dedos[0].attach(12);  // Dedo 1 no GPIO 5
+  dedos[1].attach(27); // Dedo 2 no GPIO 18
+  dedos[2].attach(33); // Dedo 3 no GPIO 19
+  dedos[3].attach(32); // Dedo 4 no GPIO 21
+  dedos[4].attach(13); // Polegar no GPIO 23
+
+  // Inicializa todos os dedos fechados
+  for (int i = 0; i < 5; i++) {
+    dedos[i].write(90); // 90 graus para fechado (ajuste conforme necessário)
+  }
+}
+
+void loop() {
+  if (SerialBT.available()) {
+    String comando = SerialBT.readString(); // Lê o comando do Bluetooth
+    processarComando(comando);              // Processa o comando recebido
+  }
+}
+
+void processarComando(String comando) {
+  // Processa comandos no formato "D<numero>"
+  if (comando.startsWith("D") && comando.length() > 1) {
+    int dedo = comando.substring(1, 2).toInt(); // Obtém o número do dedo (1 a 5)
+
+    if (dedo >= 1 && dedo <= 5) {              // Verifica se o dedo está no intervalo válido
+      int indice = dedo - 1;                   // Ajusta para índice do array
+      if (estadoDedo[indice] == 0) {           // Se o dedo estiver fechado
+        dedos[indice].write(0);                // Abre o dedo (0 graus)
+        estadoDedo[indice] = 1;                // Atualiza o estado para aberto
+        SerialBT.println("Dedo " + String(dedo) + " aberto.");
+      } else {                                 // Se o dedo estiver aberto
+        dedos[indice].write(90);               // Fecha o dedo (90 graus)
+        estadoDedo[indice] = 0;                // Atualiza o estado para fechado
+        SerialBT.println("Dedo " + String(dedo) + " fechado.");
+      }
+    } else {
+      SerialBT.println("Número de dedo inválido! Use de D1 a D5.");
+    }
+  } else {
+    SerialBT.println("Comando inválido! Use o formato D<numero>.");
+  }
+}
